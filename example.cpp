@@ -80,6 +80,7 @@ int main() {
     		"string": "CompactJSON"
 		}
 	*/
+	std::cout  << std::endl;
 
 	//(same as printing JSON in std::cout you can write it in file) 
 
@@ -93,6 +94,7 @@ int main() {
 		auto val = j4["obj"]["val"].get<float>();
 		std::cout << val << std::endl;
 	}
+	std::cout  << std::endl;
 
 	if(j1 == j2) std::cout << "j1 & j2 same objects" << std::endl;
 
@@ -100,5 +102,31 @@ int main() {
 
 	if(j1 != j2) std::cout << "j1 & j2 different objects" << std::endl;
 
+	std::cout  << std::endl;
+
+	//clear j1
+	j1.clear();
+	//now j1 is null
+
+	auto j5 = j3;//copy
+	auto j6 = std::move(j3);//move
+
+	//range based for (for arrays and objects)
 	
+	for(auto v : j4) std::cout << v << std::endl;
+	
+	std::cout  << std::endl;
+	//iterators.
+	//for objects iterator return only values, not key-value pairs.
+	for(auto it = j4.crbegin(); it != j4.crend(); it++) std::cout << it->to_string(4) << std::endl;
+	std::cout  << std::endl;
+	//array
+	JSON j7 = {"array:", 1, 2, 3, {"subarray", "2 3 7"}};
+	for(auto v : j7) std::cout << v << std::endl;
+	std::cout  << std::endl;
+
+	//!!!!
+	JSON array = {"str", 42};//is array
+	JSON object = {{"str", 42}};//is object
+	std::cout << array << ' ' << object << std::endl;
 }

@@ -26,7 +26,7 @@
 #endif
 
 #ifndef JSON_TYPE_ASSERT
-#define JSON_TYPE_ASSERT(v) { if(!v) throw std::exception("json: invalid type"); }
+#define JSON_TYPE_ASSERT(v) { if(!(v)) throw std::exception("json: invalid type"); }
 #endif
 
 #ifndef JSON_ASSERT
@@ -304,8 +304,6 @@ namespace CompactJSON {
         void clear() {
             set_type_to(val_t::null_t);
         }
-
-
 
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
         double &get() { JSON_TYPE_ASSERT(is_float()); return d; }
