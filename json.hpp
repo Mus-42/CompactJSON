@@ -264,6 +264,21 @@ namespace CompactJson {
             return *arr[i];
         }
 
+        size_t array_size() const {
+            JSON_ASSERT(is_array());
+            return arr.size();
+        }
+        size_t object_size() const {
+            JSON_ASSERT(is_object());
+            return obj.size();
+        }
+
+        bool contains(const std::string& key) const {
+            JSON_ASSERT(is_object());
+            auto f = obj.find(key);
+            return f != obj.end();
+        }
+
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
         double &get() { JSON_ASSERT(is_float()); return d; }
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
@@ -322,7 +337,7 @@ namespace CompactJson {
 
         void print(std::ostream &ostr, int tab_size = -1, size_t space_offset = 0) const {
             auto offset = std::string(space_offset, ' ');
-            auto delta = tab_size > 0 ? std::string(tab_size, ' ') : std::string();
+            auto delta = tab_size < 0 ? std::string() : std::string(tab_size, ' ');
             auto newline = tab_size < 0 ? std::string() : std::string(1, '\n');
             auto space = tab_size < 0 ? std::string() : std::string(1, ' ');
             switch(m_type) {
