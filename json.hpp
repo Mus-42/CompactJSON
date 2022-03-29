@@ -33,11 +33,11 @@
 #ifdef NDEBUG
 #define JSON_ASSERT(v) {}
 #else
-#define JSON_ASSERT(v) CompactJson::detail::json_assert_impl(v, __LINE__, __FILE__)
+#define JSON_ASSERT(v) CompactJSON::detail::json_assert_impl(v, __LINE__, __FILE__)
 #endif//NDEBUG
 #endif//JSON_ASSERT
 
-namespace CompactJson {
+namespace CompactJSON {
     class JSONBase;
     namespace detail {
         inline void json_assert_impl(bool passed, int line, const std::string& file, bool fatal = true) {
@@ -600,6 +600,6 @@ namespace CompactJson {
     }
     bool operator!=(const JSONBase &a, const JSONBase &b) { return !(a == b); }
     using JSON = JSONBase;
-}//namespace CompactJson
+}//namespace CompactJSON
 
 #endif//JSON_H_INCLUDE_HEADER_
