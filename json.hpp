@@ -12,18 +12,40 @@
 #include <type_traits>
 #include <sstream>
 #include <iostream>
+#include <exception>
 
 #include <cassert>
+#include <cstdlib>
 #include <cstdio>
 #include <cstdint> //int64_t
 
-#ifndef JSON_ASSERT//you can define custom assert macro
-#define JSON_ASSERT(v) assert(v)
+//you can define custom assert or parse error macros and override it
+
+#ifndef JSON_PARSE_ERROR
+#define JSON_PARSE_ERROR(description) throw std::exception(description);
+#endif
+
+#ifndef JSON_TYPE_ASSERT
+#define JSON_TYPE_ASSERT(v) { if(!v) throw std::exception("json: invalid type"); }
+#endif
+
+#ifndef JSON_ASSERT
+#ifdef NDEBUG
+#define JSON_ASSERT(v) {}
+#else
+#define JSON_ASSERT(v) CompactJson::detail::json_assert_impl(v, __LINE__, __FILE__)
+#endif//NDEBUG
 #endif//JSON_ASSERT
 
 namespace CompactJson {
     class JSONBase;
     namespace detail {
+        inline void json_assert_impl(bool passed, int line, const std::string& file, bool fatal = true) {
+            if(!passed) {
+                std::cout << "assertion failed in " << file << " (l: " << line << ")" << std::endl;
+                if(fatal) std::exit(1); 
+            }
+        }
         template <typename JSON_, typename array_it, typename object_it>
         class JSONIteratorBase {
         protected:
@@ -233,7 +255,7 @@ namespace CompactJson {
         JSONBase &operator[](const std::string &key) {
             if(is_null())
                 set_type_to(val_t::object_t);
-            JSON_ASSERT(is_object());
+            JSON_TYPE_ASSERT(is_object());
             auto f = obj.find(key);
             if(f == obj.end())
                 return *(obj[key] = new JSONBase);
@@ -241,7 +263,7 @@ namespace CompactJson {
                 return *f->second;
         }
         const JSONBase &operator[](const std::string &key) const {
-            JSON_ASSERT(is_object());
+            JSON_TYPE_ASSERT(is_object());
             auto f = obj.find(key);
             JSON_ASSERT(f != obj.end()); //must contains element
             return *f->second;
@@ -249,7 +271,7 @@ namespace CompactJson {
         JSONBase &operator[](size_t i) {
             if(is_null())
                 set_type_to(val_t::array_t);
-            JSON_ASSERT(is_array());
+            JSON_TYPE_ASSERT(is_array());
             if(arr.size() <= i) {
                 size_t old_size = arr.size();
                 arr.resize(i + 1, nullptr);
@@ -259,59 +281,59 @@ namespace CompactJson {
             return *arr[i];
         }
         const JSONBase &operator[](size_t i) const {
-            JSON_ASSERT(is_array());
+            JSON_TYPE_ASSERT(is_array());
             JSON_ASSERT(i < arr.size());
             return *arr[i];
         }
 
         size_t array_size() const {
-            JSON_ASSERT(is_array());
+            JSON_TYPE_ASSERT(is_array());
             return arr.size();
         }
         size_t object_size() const {
-            JSON_ASSERT(is_object());
+            JSON_TYPE_ASSERT(is_object());
             return obj.size();
         }
 
         bool contains(const std::string& key) const {
-            JSON_ASSERT(is_object());
+            JSON_TYPE_ASSERT(is_object());
             auto f = obj.find(key);
             return f != obj.end();
         }
 
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-        double &get() { JSON_ASSERT(is_float()); return d; }
+        double &get() { JSON_TYPE_ASSERT(is_float()); return d; }
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-        const double &get() const { JSON_ASSERT(is_float()); return d; }
+        const double &get() const { JSON_TYPE_ASSERT(is_float()); return d; }
         template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, bool> = true>
-        int64_t &get() { JSON_ASSERT(is_integer()); return i; }
+        int64_t &get() { JSON_TYPE_ASSERT(is_integer()); return i; }
         template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, bool> = true>
-        const int64_t &get() const { JSON_ASSERT(is_integer()); return i; }
+        const int64_t &get() const { JSON_TYPE_ASSERT(is_integer()); return i; }
         template <typename T, std::enable_if_t<std::is_same_v<T, bool>, bool> = true>
-        bool &get() { JSON_ASSERT(is_boolean()); return b; }
+        bool &get() { JSON_TYPE_ASSERT(is_boolean()); return b; }
         template <typename T, std::enable_if_t<std::is_same_v<T, bool>, bool> = true>
-        const bool &get() const { JSON_ASSERT(is_boolean()); return b; }
+        const bool &get() const { JSON_TYPE_ASSERT(is_boolean()); return b; }
         template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, bool> = true>
-        std::string &get() { JSON_ASSERT(is_string()); return str; }
+        std::string &get() { JSON_TYPE_ASSERT(is_string()); return str; }
         template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, bool> = true>
-        const std::string &get() const { JSON_ASSERT(is_string()); return str; }
+        const std::string &get() const { JSON_TYPE_ASSERT(is_string()); return str; }
         template <typename T, std::enable_if_t<std::is_same_v<T, std::nullptr_t>, bool> = true>
-        std::nullptr_t get() const { JSON_ASSERT(is_null()); return nullptr; }
+        std::nullptr_t get() const { JSON_TYPE_ASSERT(is_null()); return nullptr; }
 
         iterator begin() {
-            JSON_ASSERT(is_array() || is_object());
+            JSON_TYPE_ASSERT(is_array() || is_object());
             return is_array() ? iterator(this, arr.begin()) : iterator(this, obj.begin());
         }
         iterator end() {
-            JSON_ASSERT(is_array() || is_object());
+            JSON_TYPE_ASSERT(is_array() || is_object());
             return is_array() ? iterator(this, arr.end()) : iterator(this, obj.end());
         }
         const_iterator begin() const {
-            JSON_ASSERT(is_array() || is_object());
+            JSON_TYPE_ASSERT(is_array() || is_object());
             return is_array() ? const_iterator(this, arr.begin()) : const_iterator(this, obj.begin());
         }
         const_iterator end() const {
-            JSON_ASSERT(is_array() || is_object());
+            JSON_TYPE_ASSERT(is_array() || is_object());
             return is_array() ? const_iterator(this, arr.end()) : const_iterator(this, obj.end());
         }
         const_iterator cbegin() const { return begin(); }
@@ -392,12 +414,13 @@ namespace CompactJson {
                         case 't': s += '\t'; break;
                         case '"': s += '"'; break; //TODO add \u (unicode) & \/ support
                         case '\\': s += '\\'; break;
-                        default: JSON_ASSERT(false); break;
+                        default: JSON_PARSE_ERROR("json: invalid escape sequence"); break;
                         }
                     }
                     else s += ch;
                 }
-                JSON_ASSERT(!in.eof());
+                if(in.eof()) 
+                    JSON_PARSE_ERROR("json: unexpected end of file");
                 return s;
             };
             using num_ret_t = std::pair<std::pair<double, int64_t>, bool>;//bool = is float v?
@@ -437,7 +460,8 @@ namespace CompactJson {
                         if(ch == ',' || ch == ']') continue;
                         if(!in.eof()) ch = in.get();
                         if(std::isspace(ch)) skip_spaces();
-                        if(ch != ',' && ch != ']') JSON_ASSERT(false);
+                        if(ch != ',' && ch != ']') 
+                            JSON_PARSE_ERROR("json: ',' or ']' expected");
                     }
                     if(!in.eof()) ch = in.get();
                     break;
@@ -445,17 +469,21 @@ namespace CompactJson {
                 case '{': { //begin object
                     while(ch != '}') { //begin array
                         skip_spaces();
-                        JSON_ASSERT(ch == '"');
+                        if(ch != '"') 
+                            JSON_PARSE_ERROR("json: '\"' expected");
                         std::string key = scan_string();
                         skip_spaces();
-                        JSON_ASSERT(ch == ':' && !in.eof());
+                        if(ch != ':') 
+                            JSON_PARSE_ERROR("json: ':' expected");
+                        if(in.eof()) 
+                            JSON_PARSE_ERROR("json: unexpected end of file");
                         ret[key] = scan_value();
                         if(std::isspace(ch)) skip_spaces();
                         if(ch == ',' || ch == '}') continue;
                         if(!in.eof()) ch = in.get();
                         if(std::isspace(ch)) skip_spaces();
                         if(ch != ',' && ch != '}')
-                            JSON_ASSERT(false);
+                            JSON_PARSE_ERROR("json: ',' or '}' expected");
                     }
                     if(!in.eof()) ch = in.get();
                     break;
@@ -483,7 +511,7 @@ namespace CompactJson {
                         && !in.eof() && (ch = in.get()) == 'e')
                         ret = false;
                     else if(!in.eof())
-                        JSON_ASSERT(false);
+                        JSON_PARSE_ERROR("json: unexpected character");
                 }
                 }
                 return ret;
