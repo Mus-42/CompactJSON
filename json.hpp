@@ -150,7 +150,7 @@ namespace CompactJSON {
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
         JSONBase() {}
-        ~JSONBase() { set_type_to(val_t::null_t); } //set_type_to(null_t) -> call destuctor for string, object and array
+        ~JSONBase() { clear(); }
         JSONBase(const JSONBase &v) { *this = v; }     //use copy assignment operator
         JSONBase(JSONBase &&v) { *this = v; }          //use move assignment operator
         JSONBase &operator=(const JSONBase &v) {
@@ -231,17 +231,6 @@ namespace CompactJSON {
             return j;
         }
 
-        static JSONBase array() {//create new empty array
-            JSONBase arr;
-            arr.set_type_to(val_t::array_t);
-            return arr;
-        }
-        static JSONBase object() {//create new empty object
-            JSONBase arr;
-            arr.set_type_to(val_t::object_t);
-            return arr;
-        }
-
         bool is_float() const noexcept { return m_type == val_t::float_t; }
         bool is_integer() const noexcept { return m_type == val_t::int_t; }
         bool is_boolean() const noexcept { return m_type == val_t::bool_t; }
@@ -272,12 +261,7 @@ namespace CompactJSON {
             if(is_null())
                 set_type_to(val_t::array_t);
             JSON_TYPE_ASSERT(is_array());
-            if(arr.size() <= i) {
-                size_t old_size = arr.size();
-                arr.resize(i + 1, nullptr);
-                for(size_t j = old_size; j < arr.size(); j++)
-                    arr[j] = new JSONBase;
-            }
+            if(arr.size() <= i) resize(i + 1);
             return *arr[i];
         }
         const JSONBase &operator[](size_t i) const {
@@ -300,6 +284,28 @@ namespace CompactJSON {
             auto f = obj.find(key);
             return f != obj.end();
         }
+
+        void erase(const std::string& key) {
+            JSON_TYPE_ASSERT(is_object());
+            auto f = obj.find(key);
+            JSON_ASSERT(f != obj.end());
+            obj.erase(f);
+        }
+
+        void resize(size_t new_size) {
+            if(is_null()) set_type_to(val_t::array_t);
+            JSON_TYPE_ASSERT(is_array());
+            size_t old_size = arr.size();
+            arr.resize(new_size, nullptr);
+            for(size_t j = old_size; j < arr.size(); j++)
+                arr[j] = new JSONBase;
+        }
+
+        void clear() {
+            set_type_to(val_t::null_t);
+        }
+
+
 
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
         double &get() { JSON_TYPE_ASSERT(is_float()); return d; }
