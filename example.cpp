@@ -3,6 +3,8 @@
 #include "json.hpp"
 using CompactJSON::JSON;
 int main() {
+	//implicit construct json using initializer list 
+
 	JSON j1 = {
 		{"integer", 42},
 		{"float", 2.6},
@@ -26,8 +28,9 @@ int main() {
 	//or using overloaded [] opertator:
 	JSON j2;//empty JSON
 
-	//insert 42 (JSON-number) value in object whith key
+	//insert 42 (JSON-number) value in object whith key "integer" ...
 	j2["integer"] = 42;
+
 	j2["float"] = 2.6;
 	j2["bool"] = false;
 	j2["string"] = "CompactJSON";
@@ -39,11 +42,12 @@ int main() {
 	//or use element index to insert element in position
 	j2["array"][5] = {"subarray", 34., nullptr};
 	j2["object"] = {{"value1", 1426}};
-	j2["object"]["value2"] = {"everything"};
+	j2["object"]["value2"] = "everything";
 
-	std::ifstream in("test.json");
+	//load from file using >> (istream) operator
 	JSON j3;
-	in >> j3;
+	std::ifstream in("test.json");
+	if(in.is_open()) in >> j3;
 
 	//load from string (using raw string literals)
 	JSON j4 = JSON::from_string(R"(
@@ -95,11 +99,16 @@ int main() {
 	}
 	std::cout  << std::endl;
 
-	if(j1 == j2) std::cout << "j1 & j2 same objects" << std::endl;
+	if(j1 == j2)//true
+		std::cout << "j1 & j2 same objects" << std::endl;
 
-	j1["new_key"] = 22;
+	j1["new_key"] = 22;//change j1
 
-	if(j1 != j2) std::cout << "j1 & j2 different objects" << std::endl;
+	if(j1 != j2)//true
+		std::cout << "j1 & j2 different objects" << std::endl;
+
+	if(j1 == j2)//false
+		std::cout << "j1 & j2 same objects" << std::endl;
 
 	std::cout  << std::endl;
 
@@ -128,4 +137,8 @@ int main() {
 	JSON array = {"str", 42};//is array
 	JSON object = {{"str", 42}};//is object
 	std::cout << array << ' ' << object << std::endl;
+
+	auto j8 = JSON::from_string(R"([12,])");
+	auto j9 = JSON::from_string(R"([12 ,])");
+	auto j10 = JSON::from_string(R"([12 , ])");
 }
