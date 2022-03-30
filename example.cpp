@@ -3,25 +3,24 @@
 #include "json.hpp"
 using CompactJSON::JSON;
 int main() {
-
 	JSON j1 = {
-	{"integer", 42},
-	{"float", 2.6},
-	{"bool", false},
-	{"string", "CompactJSON"},
-	{"null", nullptr},
-	{"array", {
-		1, 
-		true, 
-		-8, 
-		3.4, 
-		"str", 
-		{"subarray", 34., nullptr}
-	}},
-	{"object", {
-		{"value1", 1426}, 
-		{"value2", "everything"}
-	}}
+		{"integer", 42},
+		{"float", 2.6},
+		{"bool", false},
+		{"string", "CompactJSON"},
+		{"null", nullptr},
+		{"array", {
+			1, 
+			true, 
+			-8, 
+			3.4, 
+			"str", 
+			{"subarray", 34., nullptr}
+		}},
+		{"object", {
+			{"value1", 1426}, 
+			{"value2", "everything"}
+		}}
 	};
 
 	//or using overloaded [] opertator:

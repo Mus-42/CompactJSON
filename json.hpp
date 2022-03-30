@@ -16,17 +16,18 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <cmath>
 #include <cstdio>
 #include <cstdint> //int64_t
 
 //you can define custom assert or parse error macros and override it
 
 #ifndef JSON_PARSE_ERROR
-#define JSON_PARSE_ERROR(description) throw std::exception(description);
+#define JSON_PARSE_ERROR(description) throw std::runtime_error(description);
 #endif
 
 #ifndef JSON_TYPE_ASSERT
-#define JSON_TYPE_ASSERT(v) { if(!(v)) throw std::exception("json: invalid type"); }
+#define JSON_TYPE_ASSERT(v) { if(!(v)) throw std::logic_error("json: invalid type"); }
 #endif
 
 #ifndef JSON_ASSERT
@@ -68,6 +69,8 @@ namespace CompactJSON {
                 }
             }
             JSONIteratorBase(const JSONIteratorBase &o) { *this = o; }
+            explicit JSONIteratorBase(const JSONBase *p, array_it arr_i) : m_type(iter_t::array), iter_array(arr_i), parent(p) {}
+            explicit JSONIteratorBase(const JSONBase *p, object_it obj_i) : m_type(iter_t::object), iter_object(obj_i), parent(p) {}
             JSONIteratorBase &operator=(const JSONIteratorBase &o) noexcept {
                 this->~JSONIteratorBase();
                 switch(m_type = o.m_type) {
@@ -129,8 +132,6 @@ namespace CompactJSON {
             bool operator!=(const JSONIteratorBase &o) const { return !(*this == o); }
         protected:
             friend class JSONBase;
-            explicit JSONIteratorBase(const JSONBase *p, array_it arr_i) : m_type(iter_t::array), iter_array(arr_i), parent(p) {}
-            explicit JSONIteratorBase(const JSONBase *p, object_it obj_i) : m_type(iter_t::object), iter_object(obj_i), parent(p) {}
             union {
                 array_it iter_array;
                 object_it iter_object;
@@ -223,7 +224,8 @@ namespace CompactJSON {
         }
 
         static JSONBase from_string(const std::string& str) {
-            return from_stream(std::istringstream(str));
+            std::istringstream s(str);
+            return from_stream(s);
         }
         static JSONBase from_stream(std::istream& istr) {
             JSONBase j;
