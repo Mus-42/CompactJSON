@@ -372,6 +372,10 @@ namespace CompactJSON {
                 ostr << ('"' + escape_sec_to_string(str) + '"');
                 break;
             case val_t::object_t: {
+                if(obj.empty()) {
+                    ostr << '{' << '}';
+                    break;
+                }
                 size_t r = obj.size() - 1;
                 ostr << '{' << newline;
                 for(auto [key, v] : obj) {
@@ -382,6 +386,10 @@ namespace CompactJSON {
                 break;
             }
             case val_t::array_t: {
+                if(arr.empty()) {
+                    ostr << '[' << ']';
+                    break;
+                }
                 size_t r = arr.size() - 1;
                 ostr << '[' << newline;
                 for(auto v : arr) {
@@ -399,8 +407,9 @@ namespace CompactJSON {
             }
         }
         void scan(std::istream &in) {//TODO add parse options?
-            char ch;
+            int ch;
             JSONBase ret, *cur = &ret;
+            //auto is_correct_char = [](int ch) -> bool { return -1 <= ch && ch <= 255};
             auto skip_spaces = [&](){ 
                 while(!in.eof() && std::isspace(ch = in.get())) continue; 
             };
@@ -421,7 +430,10 @@ namespace CompactJSON {
                         default: JSON_PARSE_ERROR("json: invalid escape sequence"); break;
                         }
                     }
-                    else s += ch;
+                    else {
+                        if(ch > 127) JSON_PARSE_ERROR("json: non-ascii symbol");
+                        s += ch;
+                    }
                 }
                 if(in.eof()) 
                     JSON_PARSE_ERROR("json: unexpected end of file");
@@ -506,9 +518,10 @@ namespace CompactJSON {
                 case '.': case '-': case '+': { //can begin from . (.2 same as 0.2) or from - or + (plus is non standart)
                     auto [n, is_f] = scan_number();
                     auto [f, i] = n;
-                    if(is_f)
+                    if(is_f) {
+                        if(!std::isfinite(f)) JSON_PARSE_ERROR("json: invalid constant");
                         ret = f;
-                    else
+                    } else
                         ret = i;
                     break;
                 }
@@ -541,6 +554,7 @@ namespace CompactJSON {
             if(!in.eof()) ch = in.get();
             *this = scan_value();
             if(!in.eof()) {
+                if(!is_array() && !is_object()) ch = in.get();
                 if(std::isspace(ch)) skip_spaces();
                 if(!in.eof() && !std::isspace(ch)) JSON_PARSE_ERROR("json: unexpected character");
             }

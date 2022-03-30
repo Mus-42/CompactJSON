@@ -137,8 +137,4 @@ int main() {
 	JSON array = {"str", 42};//is array
 	JSON object = {{"str", 42}};//is object
 	std::cout << array << ' ' << object << std::endl;
-
-	auto j8 = JSON::from_string(R"([12,])");
-	auto j9 = JSON::from_string(R"([12 ,])");
-	auto j10 = JSON::from_string(R"([12 , ])");
 }
