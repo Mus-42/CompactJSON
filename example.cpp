@@ -4,7 +4,6 @@
 using CompactJSON::JSON;
 int main() {
 	//implicit construct json using initializer list 
-
 	JSON j1 = {
 		{"integer", 42},
 		{"float", 2.6},
