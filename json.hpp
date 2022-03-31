@@ -306,6 +306,11 @@ namespace CompactJSON {
             set_type_to(val_t::null_t);
         }
 
+        bool empty() const {
+            JSON_TYPE_ASSERT(is_object() || is_array());
+            return is_array() ? arr.empty() : obj.empty();
+        }
+
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
         double &get() { JSON_TYPE_ASSERT(is_float()); return d; }
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
@@ -361,6 +366,9 @@ namespace CompactJSON {
         friend std::istream &operator>>(std::istream &ostr, JSONBase &j);
         friend bool operator==(const JSONBase &a, const JSONBase &b);
         friend bool operator!=(const JSONBase &a, const JSONBase &b);
+        #ifdef JSON_PROTECTED_DEFINITIONS//define it to add friend functions/classes or additional member data
+        JSON_PROTECTED_DEFINITIONS;
+        #endif//JSON_PROTECTED_DEFINITIONS
 
         void print(std::ostream &ostr, int tab_size = -1, size_t space_offset = 0) const {
             auto offset = std::string(space_offset, ' ');

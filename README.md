@@ -55,7 +55,7 @@ std::string s2 = j1.to_string(4);//pass tab_size 4
 //parse string back to json
 auto j3 = JSON::from_string(s2);
 ```
-## Data acces 
+## Data access
 ```cpp
 /*
     to check contained type you can use .is_***() metods for 
@@ -71,11 +71,16 @@ if(j3.is_object() && j3.contains("used includes")) {
 
     //print first elemebt of the array if exist
     if(j4.is_array() && j4.array_size() > 0) {
-        if(j4[0].is_string()) std::cout << j4[0].get<std::string>();
+        if(j4[0].is_string())
+            std::cout << j4[0].get<std::string>();
+        //get<std::string>() return string from json
     }
 }
+JSON j5 = 15;
+if(j5.is_integer())
+    auto i = j5.get<int>();
 ```
-
+For more features chek example.cpp & json.hpp
 ## Todo list
 * Add unicode strings and keys support, \u escape sequences (now supported ascii-only characters)
 * Add utf-8 file support
