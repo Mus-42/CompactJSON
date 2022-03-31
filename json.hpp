@@ -452,12 +452,12 @@ namespace CompactJSON {
                             int symbol = 0;
                             for(size_t i = 0; i < 4; i++) {//4 hex digits
                                 ch = in.get();
-                                symbol = symbol * 16 + (std::isdigit(ch) ? ch-'0' : (std::isupper(ch) ? ch - 'A' : ch - 'a'));
+                                symbol = symbol * 16 + (std::isdigit(ch)?ch-'0':ch+10-(std::isupper(ch)?'A':'a'));
                             }
                             //now symbol is unicode codepoint for symbol
                             //TODO: add char conversion to utf-8
                             if(ch > 127) JSON_PARSE_ERROR("json: non-ascii symbol in escape sequence");
-                            s += ch;
+                            s += symbol;
                             break;
                         }
                         default: JSON_PARSE_ERROR("json: invalid escape sequence"); break;
