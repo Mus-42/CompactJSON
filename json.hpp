@@ -222,13 +222,13 @@ namespace CompactJSON {
             } 
         }
 
-        static JSONBase from_string(const std::string& str) {
+        static JSONBase from_string(const std::string& str, bool enable_comments = false) {
             std::istringstream s(str);
-            return from_stream(s);
+            return from_stream(s, enable_comments);
         }
-        static JSONBase from_stream(std::istream& istr) {
+        static JSONBase from_stream(std::istream& istr, bool enable_comments = false) {
             JSONBase j;
-            j.scan(istr);
+            j.scan(istr, enable_comments);
             return j;
         }
 
@@ -421,6 +421,17 @@ namespace CompactJSON {
             auto skip_spaces = [&](){ 
                 while(!in.eof() && std::isspace(ch = in.get())) continue; 
             };
+            auto skip_comments = [&](){       
+                if(!enable_comments) JSON_PARSE_ERROR("json: comments is not enabled");
+                ch = in.get();
+                if(ch == '/') {//single line
+                    while(!in.eof() && (ch = in.get()) != '\n') continue;
+                } else if(ch == '*') {//multiline
+                    int ch2 = in.get();
+                    while(ch2 != '*' && (ch = in.get()) != '/') ch2 = ch;
+                    if(in.eof()) JSON_PARSE_ERROR("json: unexpected end of file");
+                } else JSON_PARSE_ERROR("json: unexpected character");
+            };
             std::function<std::string(void)> scan_string;
             scan_string = [&]() -> std::string {
                 std::string s;
@@ -472,6 +483,7 @@ namespace CompactJSON {
                     * std::pow(10., ((is_exp_positive ? 1. : -1.) * double(exp_part))), 0}, true}//exponent
                     : num_ret_t{{0., (is_positive ? 1 : -1) * int_part}, false};//integer
             };
+
             std::function<JSONBase(void)> scan_value;
             scan_value = [&]() -> JSONBase {
                 JSONBase ret;
@@ -553,8 +565,7 @@ namespace CompactJSON {
                     break;
                 }
                 case '/': {//comment begin 
-                    if(!enable_comments) JSON_PARSE_ERROR("json: comments is not enabled");
-
+                    skip_comments();
                     break;
                 }
                 default: {//error

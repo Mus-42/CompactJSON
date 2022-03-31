@@ -1,5 +1,6 @@
 #include <iostream>
-#include <fstream>
+#include <fstream>//for file io example
+#include <complex>//for example whith complex numbers 
 #include "json.hpp"
 using CompactJSON::JSON;
 int main() {
@@ -87,16 +88,36 @@ int main() {
 	//(same as printing JSON in std::cout you can write it in file) 
 
 	//get data from json object
-	auto v1 = j4["float"].get<float>();
-	auto v2 = j4["obj"]["num"].get<int>();
+	auto g1 = j4["float"].get<float>();
+	auto g2 = j4["obj"]["num"].get<int>();
 
-	std::cout << v1 << ' ' << v2 << std::endl;
+	std::cout << g1 << ' ' << g2 << std::endl;
 
 	if(j4["obj"].is_object() && j4["obj"].contains("val")) {
 		auto val = j4["obj"]["val"].get<float>();
 		std::cout << val << std::endl;
 	}
 	std::cout  << std::endl;
+
+	//get complex number example with enabled comments
+    auto complex_array = JSON::from_string(R"(
+        [
+          {//store complex num as object:
+            "Re": 26,
+            "Im": 42
+          },
+		  /*
+		  	or as array:
+		  */
+          [26, 42],
+		  //or as string:
+          "26+42i"
+        ]
+    )", true);
+	//v0, v1, v2 represent 26+42i complex number
+    std::complex<int64_t> v0 = {complex_array[0]["Re"].get<int64_t>(), complex_array[0]["Im"].get<int64_t>()};
+    std::complex<int64_t> v1 = {complex_array[1][0].get<int64_t>(), complex_array[1][1].get<int64_t>()};
+    std::string v2 = complex_array[2].get<std::string>();
 
 	if(j1 == j2)//true
 		std::cout << "j1 & j2 same objects" << std::endl;
@@ -136,4 +157,5 @@ int main() {
 	JSON array = {"str", 42};//is array
 	JSON object = {{"str", 42}};//is object
 	std::cout << array << ' ' << object << std::endl;
+
 }
