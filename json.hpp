@@ -428,8 +428,10 @@ namespace CompactJSON {
                     while(!in.eof() && (ch = in.get()) != '\n') continue;
                 } else if(ch == '*') {//multiline
                     int ch2 = in.get();
-                    while(ch2 != '*' && (ch = in.get()) != '/') ch2 = ch;
+                    while(!in.eof() && !((ch = in.get()) == '/' && ch2 == '*')) 
+                        ch2 = ch;
                     if(in.eof()) JSON_PARSE_ERROR("json: unexpected end of file");
+                    ch = in.get();
                 } else JSON_PARSE_ERROR("json: unexpected character");
             };
             std::function<std::string(void)> scan_string;
@@ -494,11 +496,18 @@ namespace CompactJSON {
                     size_t i = 0;
                     while(ch != ']') { 
                         skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch == ']') continue;
                         ret[i++] = scan_value();
                         if(ch == ',' || ch == ']') continue;
                         if(!in.eof()) ch = in.get();
-                        if(std::isspace(ch)) skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch != ',' && ch != ']') 
                             JSON_PARSE_ERROR("json: ',' or ']' expected");
                     }
@@ -509,11 +518,19 @@ namespace CompactJSON {
                     ret.set_type_to(val_t::object_t);
                     while(ch != '}') { //begin array
                         skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch == '}') continue;
                         if(ch != '"') 
                             JSON_PARSE_ERROR("json: '\"' expected");
                         std::string key = scan_string();
                         skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch != ':') 
                             JSON_PARSE_ERROR("json: ':' expected");
                         if(in.eof()) 
@@ -523,7 +540,10 @@ namespace CompactJSON {
                         if(std::isspace(ch)) skip_spaces();
                         if(ch == ',' || ch == '}') continue;
                         if(!in.eof()) ch = in.get();
-                        if(std::isspace(ch)) skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(std::isspace(ch)) skip_spaces();
+                            if(ch == '/') skip_comments();
+                        }
                         if(ch != ',' && ch != '}')
                             JSON_PARSE_ERROR("json: ',' or '}' expected");
                     }
