@@ -222,13 +222,13 @@ namespace CompactJSON {
             } 
         }
 
-        static JSONBase from_string(const std::string& str) {
+        static JSONBase from_string(const std::string& str, bool enable_comments = false) {
             std::istringstream s(str);
-            return from_stream(s);
+            return from_stream(s, enable_comments);
         }
-        static JSONBase from_stream(std::istream& istr) {
+        static JSONBase from_stream(std::istream& istr, bool enable_comments = false) {
             JSONBase j;
-            j.scan(istr);
+            j.scan(istr, enable_comments);
             return j;
         }
 
@@ -414,12 +414,25 @@ namespace CompactJSON {
             default: break;
             }
         }
-        void scan(std::istream &in) {//TODO add parse options?
+        void scan(std::istream &in, bool enable_comments = false) {
             int ch;
             JSONBase ret, *cur = &ret;
             //auto is_correct_char = [](int ch) -> bool { return -1 <= ch && ch <= 255};
             auto skip_spaces = [&](){ 
                 while(!in.eof() && std::isspace(ch = in.get())) continue; 
+            };
+            auto skip_comments = [&](){       
+                if(!enable_comments) JSON_PARSE_ERROR("json: comments is not enabled");
+                ch = in.get();
+                if(ch == '/') {//single line
+                    while(!in.eof() && (ch = in.get()) != '\n') continue;
+                } else if(ch == '*') {//multiline
+                    int ch2 = in.get();
+                    while(!in.eof() && !((ch = in.get()) == '/' && ch2 == '*')) 
+                        ch2 = ch;
+                    if(in.eof()) JSON_PARSE_ERROR("json: unexpected end of file");
+                    ch = in.get();
+                } else JSON_PARSE_ERROR("json: unexpected character");
             };
             std::function<std::string(void)> scan_string;
             scan_string = [&]() -> std::string {
@@ -484,6 +497,7 @@ namespace CompactJSON {
                     * std::pow(10., ((is_exp_positive ? 1. : -1.) * double(exp_part))), 0}, true}//exponent
                     : num_ret_t{{0., (is_positive ? 1 : -1) * int_part}, false};//integer
             };
+
             std::function<JSONBase(void)> scan_value;
             scan_value = [&]() -> JSONBase {
                 JSONBase ret;
@@ -494,11 +508,18 @@ namespace CompactJSON {
                     size_t i = 0;
                     while(ch != ']') { 
                         skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch == ']') continue;
                         ret[i++] = scan_value();
                         if(ch == ',' || ch == ']') continue;
                         if(!in.eof()) ch = in.get();
-                        if(std::isspace(ch)) skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch != ',' && ch != ']') 
                             JSON_PARSE_ERROR("json: ',' or ']' expected");
                     }
@@ -509,11 +530,19 @@ namespace CompactJSON {
                     ret.set_type_to(val_t::object_t);
                     while(ch != '}') { //begin array
                         skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch == '}') continue;
                         if(ch != '"') 
                             JSON_PARSE_ERROR("json: '\"' expected");
                         std::string key = scan_string();
                         skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(ch == '/') skip_comments();
+                            if(std::isspace(ch)) skip_spaces();
+                        }
                         if(ch != ':') 
                             JSON_PARSE_ERROR("json: ':' expected");
                         if(in.eof()) 
@@ -523,7 +552,10 @@ namespace CompactJSON {
                         if(std::isspace(ch)) skip_spaces();
                         if(ch == ',' || ch == '}') continue;
                         if(!in.eof()) ch = in.get();
-                        if(std::isspace(ch)) skip_spaces();
+                        while (std::isspace(ch) || ch == '/') {
+                            if(std::isspace(ch)) skip_spaces();
+                            if(ch == '/') skip_comments();
+                        }
                         if(ch != ',' && ch != '}')
                             JSON_PARSE_ERROR("json: ',' or '}' expected");
                     }
@@ -564,7 +596,11 @@ namespace CompactJSON {
                     else JSON_PARSE_ERROR("json: unexpected character");
                     break;
                 }
-                default: { //null or bool or error
+                case '/': {//comment begin 
+                    skip_comments();
+                    break;
+                }
+                default: {//error
                     JSON_PARSE_ERROR("json: unexpected character");
                     break;
                 }
@@ -572,7 +608,7 @@ namespace CompactJSON {
                 return ret;
             };
             if(!in.eof()) ch = in.get();
-            *this = scan_value();
+            if(!in.eof()) *this = scan_value();
             if(!in.eof()) {
                 if(!is_array() && !is_object()) ch = in.get();
                 if(std::isspace(ch)) skip_spaces();
@@ -636,7 +672,7 @@ namespace CompactJSON {
             return false;
         using val_t = JSONBase::val_t;
         switch(a.m_type) {
-        case val_t::float_t: return a.d == b.d;
+        case val_t::float_t: return std::abs(a.d - b.d) < 1e-10;
         case val_t::int_t: return a.i == b.i;
         case val_t::bool_t: return a.b == b.b;
         case val_t::string_t: return a.str == b.str;
