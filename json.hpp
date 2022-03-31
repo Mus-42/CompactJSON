@@ -414,7 +414,7 @@ namespace CompactJSON {
             default: break;
             }
         }
-        void scan(std::istream &in) {//TODO add parse options?
+        void scan(std::istream &in, bool enable_comments = false) {
             int ch;
             JSONBase ret, *cur = &ret;
             //auto is_correct_char = [](int ch) -> bool { return -1 <= ch && ch <= 255};
@@ -552,7 +552,12 @@ namespace CompactJSON {
                     else JSON_PARSE_ERROR("json: unexpected character");
                     break;
                 }
-                default: { //null or bool or error
+                case '/': {//comment begin 
+                    if(!enable_comments) JSON_PARSE_ERROR("json: comments is not enabled");
+
+                    break;
+                }
+                default: {//error
                     JSON_PARSE_ERROR("json: unexpected character");
                     break;
                 }
@@ -560,7 +565,7 @@ namespace CompactJSON {
                 return ret;
             };
             if(!in.eof()) ch = in.get();
-            *this = scan_value();
+            if(!in.eof()) *this = scan_value();
             if(!in.eof()) {
                 if(!is_array() && !is_object()) ch = in.get();
                 if(std::isspace(ch)) skip_spaces();
@@ -624,7 +629,7 @@ namespace CompactJSON {
             return false;
         using val_t = JSONBase::val_t;
         switch(a.m_type) {
-        case val_t::float_t: return a.d == b.d;
+        case val_t::float_t: return std::abs(a.d - b.d) < 1e-10;
         case val_t::int_t: return a.i == b.i;
         case val_t::bool_t: return a.b == b.b;
         case val_t::string_t: return a.str == b.str;
