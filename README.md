@@ -52,7 +52,8 @@ std::string s2 = j1.to_string(4);//pass tab_size 4
         ]
     }
 */
-//parse string back to json
+
+//parse json back from string
 auto j3 = JSON::from_string(s2);
 ```
 ## Data access
@@ -80,7 +81,7 @@ JSON j5 = 15;
 if(j5.is_integer())
     auto i = j5.get<int>();
 ```
-For more features chek example.cpp & json.hpp
+For more features check example.cpp & json.hpp
 ## Todo list
 * Add unicode strings and keys support, \u escape sequences (now supported ascii-only characters)
 * Add utf-8 file support
