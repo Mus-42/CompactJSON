@@ -45,7 +45,9 @@ namespace CompactJSON {
         inline void json_assert_impl(bool passed, int line, const std::string& file, bool fatal = true) {
             if (!passed) {
                 std::cout << "assertion failed in " << file << " (l: " << line << ")" << std::endl;
-                if (fatal) std::exit(1);
+                if (fatal)
+                    //std::exit(1);
+                    throw std::runtime_error("assertion failed");
             }
         }
         template <typename JSON_, typename array_it, typename object_it>
@@ -373,7 +375,7 @@ namespace CompactJSON {
         JSON_PROTECTED_DEFINITIONS;
 #endif//JSON_PROTECTED_DEFINITIONS
 
-        void print(std::ostream& ostr, int tab_size = -1, size_t space_offset = 0) const {          
+        void print(std::ostream& ostr, int tab_size = -1, size_t space_offset = 0) const {
             auto offset = std::string(space_offset, ' ');
             auto delta = tab_size < 0 ? std::string() : std::string(tab_size, ' ');
             auto newline = tab_size < 0 ? std::string() : std::string(1, '\n');
@@ -411,9 +413,14 @@ namespace CompactJSON {
                 break;
             }
             case val_t::float_t: {
-                if(std::abs(std::log10(d)) > 16) ostr << std::scientific;
-                else ostr << std::defaultfloat << std::setprecision((std::numeric_limits<double>::digits10 + 2));
-                ostr << d; 
+                if (!std::isfinite(d)) {
+                    ostr << "null";
+                    break;
+                }
+                if (std::abs(std::log10(d)) > 16) ostr << std::scientific;
+                else ostr << std::defaultfloat << std::setprecision((std::numeric_limits<double>::max_digits10 + 1));
+                //ostr << std::scientific << std::setprecision((std::numeric_limits<double>::max_digits10 + 1));
+                ostr << d;//TODO fix loat precision
             } break;
             case val_t::int_t: ostr << i; break;
             case val_t::bool_t: ostr << (b ? "true" : "false"); break;
@@ -464,24 +471,74 @@ namespace CompactJSON {
                         case 't': s += '\t'; break;
                         case '"': s += '"'; break;
                         case '\\': s += '\\'; break;
-                        case 'u': {//unicode char
-                            int symbol = 0;
+                        case 'u': {//unicode char escape sec
+                            uint32_t symbol = 0;
                             for (size_t i = 0; i < 4; i++) {//4 hex digits
                                 ch = in.get();
                                 symbol = symbol * 16 + (std::isdigit(ch) ? ch - '0' : ch + 10 - (std::isupper(ch) ? 'A' : 'a'));
                             }
                             //now symbol is unicode codepoint for symbol
-                            //TODO: add char conversion to utf-8
-                            if (symbol > 127) JSON_PARSE_ERROR("json: non-ascii symbol in escape sequence");
-                            s += symbol;
+                            if (symbol < (2 << 7)) s += symbol;//1 wide
+                            else if (symbol < (2 << 11)) {//2 wide
+                                str += 0b11000000 | ((symbol & ~0b00111111) >> 6);
+                                str += 0b11000000 | (symbol & 0b00111111);
+                            } if (symbol < (2 << 16)) {//3 wide
+                                uint32_t v[3];
+                                v[2] = symbol & 0b00111111, symbol >>= 6;
+                                v[1] = symbol & 0b00111111, symbol >>= 6;
+                                v[0] = symbol;
+                                str += 0b11100000 | v[0], str += 0b10000000 | v[1], str += 0b10000000 | v[2];
+                            }
+                            else {//4 wide
+                                uint32_t v[4];
+                                v[3] = symbol & 0b00111111, symbol >>= 6;
+                                v[2] = symbol & 0b00111111, symbol >>= 6;
+                                v[1] = symbol & 0b00111111, symbol >>= 6;
+                                v[0] = symbol;
+                                str += 0b11110000 | v[0], str += 0b10000000 | v[1], str += 0b10000000 | v[2], str += 0b10000000 | v[3];
+                            }
                             break;
                         }
                         default: JSON_PARSE_ERROR("json: invalid escape sequence"); break;
                         }
                     }
                     else {
-                        if (ch > 127) JSON_PARSE_ERROR("json: non-ascii symbol");
-                        s += ch;
+                        //if (ch > 127) JSON_PARSE_ERROR("json: non-ascii symbol");
+                        
+                        //scan string as utf-8
+                        if (ch < 0b11000000) {//1 wide
+                            s += ch;
+                        }
+                        else if (ch < 0b11100000) {//2 wide
+                            if(!((ch & 0b11100000) == 0b11000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                            ch = in.get();
+                            if(in.eof() || ((ch & 0b11000000) != 0b10000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                        }
+                        else if (ch < 0b11110000) {//3 wide
+                            if(!((ch & 0b11110000) == 0b11100000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                            ch = in.get();
+                            if(in.eof() || ((ch & 0b11000000) != 0b10000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                            ch = in.get();
+                            if(in.eof() || ((ch & 0b11000000) != 0b10000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                        }
+                        else {//4 wide
+                            if(!((ch & 0b11111000) == 0b11110000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                            ch = in.get();
+                            if(in.eof() || ((ch & 0b11000000) != 0b10000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                            ch = in.get();
+                            if(in.eof() || ((ch & 0b11000000) != 0b10000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                            ch = in.get();
+                            if(in.eof() || ((ch & 0b11000000) != 0b10000000)) JSON_PARSE_ERROR("json: invalid utf8");
+                            s += ch;
+                        }
                     }
                 }
                 if (in.eof())
@@ -511,8 +568,8 @@ namespace CompactJSON {
                 } //now number is: (is_positive ? 1 : -1) * (int_part + fract_part/fract_div) * 10^((is_exp_positive ? 1 : -1) * exp_part)
                 return is_float ? num_ret_t{
                     {(is_positive ? 1. : -1.) * (double(int_part) + double(fract_part) / double(fract_div))//float value 
-                    * std::pow(10., ((is_exp_positive ? 1. : -1.) * double(exp_part))), 0}, true }//exponent
-                : num_ret_t{ {0., (is_positive ? 1 : -1) * int_part}, false };//integer
+                    * std::pow(10., ((is_exp_positive ? 1. : -1.) * double(exp_part))), 0}, true } ://exponent
+                    num_ret_t{ {0., (is_positive ? 1 : -1) * int_part}, false };//integer
             };
 
             std::function<JSONBase(void)> scan_value;
@@ -619,9 +676,10 @@ namespace CompactJSON {
             std::vector<JSONBase*> arr;           //array
         };
         val_t m_type = val_t::null_t;
-        static std::string escape_sec_to_string(const std::string& str) {
+        static std::string escape_sec_to_string(const std::string& str) {//str is unicode (utf8) string
             std::string ret;
-            for (auto ch : str)
+            for (size_t i = 0; i < str.size(); i++) {
+                unsigned char ch = static_cast<unsigned char>(str[i]);
                 switch (ch) {
                 case '\b': ret += '\\'; ret += 'b'; break;
                 case '\f': ret += '\\'; ret += 'f'; break;
@@ -630,8 +688,36 @@ namespace CompactJSON {
                 case '\t': ret += '\\'; ret += 't'; break;
                 case '\"': ret += '\\'; ret += '"'; break;
                 case '\\': ret += '\\'; ret += '\\'; break;
-                default: ret += ch; break;
+                default: {
+                    if (std::isprint(ch) && ch < 128) ret += ch;//printable ascii character
+                    else {//non printable or unicode. convert to Unicode
+                        ret += '\\'; ret += 'u';// "\u"
+                        uint32_t char_code = 0;
+                        if (ch < 0b11000000) char_code = ch;//1 wide
+                        else if (ch < 0b11100000 && i + 1 < str.size())//2 wide
+                            char_code = ((uint32_t(static_cast<unsigned char>(ch)) & 0b00011111) << 6) | ((uint32_t(static_cast<unsigned char>(str[i + 1])) & 0b00111111));
+                        else if (ch < 0b11110000 && i + 2 < str.size())//3 wide
+                            char_code = ((((uint32_t(static_cast<unsigned char>(ch)) & 0b00001111) << 6) | (uint32_t(static_cast<unsigned char>(str[i + 1])) & 0b00111111)) << 6)
+                            | (uint32_t(static_cast<unsigned char>(str[i + 2])) & 0b00111111);
+                        else if (i + 3 < str.size()) {//4 wide
+                            char_code = ((((((uint32_t(static_cast<unsigned char>(ch)) & 0b00000111) << 6) | (uint32_t(static_cast<unsigned char>(str[i + 1])) & 0b00111111)) << 6)
+                                          | (uint32_t(static_cast<unsigned char>(str[i + 2])) & 0b00111111)) << 6) | uint32_t(static_cast<unsigned char>(str[i + 3])) & 0b00111111;
+                        }
+                        if(char_code > (1 << 16)) {
+                            JSON_ASSERT(0);
+                        }
+                        char buf[4];
+                        for (size_t i = 0; i < 4; i++) {
+                            int v = char_code % 16;
+                            buf[3 - i] = v < 10 ? '0' + v : 'A' + v - 10;
+                            char_code /= 16;
+                        }
+                        JSON_ASSERT(char_code == 0);//converted successful
+                        for (size_t i = 0; i < 4; i++) ret += buf[i];
+                    }
+                } break;
                 }
+            }
             return ret;
         }
         val_t set_type_to(val_t t) {
