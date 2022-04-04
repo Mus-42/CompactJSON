@@ -418,21 +418,29 @@ namespace CompactJSON {
             int ch;
             JSONBase ret, *cur = &ret;
             //auto is_correct_char = [](int ch) -> bool { return -1 <= ch && ch <= 255};
-            auto skip_spaces = [&](){ 
-                while(!in.eof() && std::isspace(ch = in.get())) continue; 
-            };
-            auto skip_comments = [&](){       
-                if(!enable_comments) JSON_PARSE_ERROR("json: comments is not enabled");
-                ch = in.get();
-                if(ch == '/') {//single line
-                    while(!in.eof() && (ch = in.get()) != '\n') continue;
-                } else if(ch == '*') {//multiline
-                    int ch2 = in.get();
-                    while(!in.eof() && !((ch = in.get()) == '/' && ch2 == '*')) 
-                        ch2 = ch;
-                    if(in.eof()) JSON_PARSE_ERROR("json: unexpected end of file");
-                    ch = in.get();
-                } else JSON_PARSE_ERROR("json: unexpected character");
+            int ch2 = 0;
+            auto skip_spaces_and_comments = [&]() {
+                while(!in.eof() && (std::isspace(ch) || ch == '/')) {
+                    if(ch == '/') {
+                        if(!enable_comments) JSON_PARSE_ERROR("json: comments is not enabled");
+                        ch2 = in.get();
+                        if(ch2 == '/') {
+                            while(!in.eof() && ch != '\n') ch = in.get();
+                            ch = in.get();
+                        } else if(ch2 == '*') {
+                            ch2 = in.get();
+                            ch = in.get();
+                            while(!in.eof() && !(ch2 == '*' && ch == '/')) {
+                                ch2 = ch;
+                                ch = in.get();
+                            }
+                            if(in.eof()) JSON_PARSE_ERROR("json: unexpected end of file");
+                            ch = in.get();
+                        }
+                        else JSON_PARSE_ERROR("json: unexpected character");
+                    }
+                    else ch = in.get();
+                }
             };
             std::function<std::string(void)> scan_string;
             scan_string = [&]() -> std::string {
@@ -456,7 +464,7 @@ namespace CompactJSON {
                             }
                             //now symbol is unicode codepoint for symbol
                             //TODO: add char conversion to utf-8
-                            if(ch > 127) JSON_PARSE_ERROR("json: non-ascii symbol in escape sequence");
+                            if(symbol > 127) JSON_PARSE_ERROR("json: non-ascii symbol in escape sequence");
                             s += symbol;
                             break;
                         }
@@ -470,6 +478,7 @@ namespace CompactJSON {
                 }
                 if(in.eof()) 
                     JSON_PARSE_ERROR("json: unexpected end of file");
+                ch = in.get();
                 return s;
             };
             using num_ret_t = std::pair<std::pair<double, int64_t>, bool>;//bool = is float v?
@@ -501,25 +510,17 @@ namespace CompactJSON {
             std::function<JSONBase(void)> scan_value;
             scan_value = [&]() -> JSONBase {
                 JSONBase ret;
-                if(std::isspace(ch)) skip_spaces();
+                skip_spaces_and_comments();
                 switch(ch) {
                 case '[': {//begin array
                     ret.set_type_to(val_t::array_t);
                     size_t i = 0;
                     while(ch != ']') { 
-                        skip_spaces();
-                        while (std::isspace(ch) || ch == '/') {
-                            if(ch == '/') skip_comments();
-                            if(std::isspace(ch)) skip_spaces();
-                        }
+                        ch = in.get();
+                        skip_spaces_and_comments();
                         if(ch == ']') continue;
                         ret[i++] = scan_value();
-                        if(ch == ',' || ch == ']') continue;
-                        if(!in.eof()) ch = in.get();
-                        while (std::isspace(ch) || ch == '/') {
-                            if(ch == '/') skip_comments();
-                            if(std::isspace(ch)) skip_spaces();
-                        }
+                        skip_spaces_and_comments();
                         if(ch != ',' && ch != ']') 
                             JSON_PARSE_ERROR("json: ',' or ']' expected");
                     }
@@ -529,33 +530,20 @@ namespace CompactJSON {
                 case '{': { //begin object
                     ret.set_type_to(val_t::object_t);
                     while(ch != '}') { //begin array
-                        skip_spaces();
-                        while (std::isspace(ch) || ch == '/') {
-                            if(ch == '/') skip_comments();
-                            if(std::isspace(ch)) skip_spaces();
-                        }
+                        ch = in.get();
+                        skip_spaces_and_comments();
                         if(ch == '}') continue;
                         if(ch != '"') 
                             JSON_PARSE_ERROR("json: '\"' expected");
                         std::string key = scan_string();
-                        skip_spaces();
-                        while (std::isspace(ch) || ch == '/') {
-                            if(ch == '/') skip_comments();
-                            if(std::isspace(ch)) skip_spaces();
-                        }
+                        skip_spaces_and_comments();
                         if(ch != ':') 
                             JSON_PARSE_ERROR("json: ':' expected");
                         if(in.eof()) 
                             JSON_PARSE_ERROR("json: unexpected end of file");
-                        if(!in.eof()) ch = in.get();
+                        ch = in.get();
                         ret[key] = scan_value();
-                        if(std::isspace(ch)) skip_spaces();
-                        if(ch == ',' || ch == '}') continue;
-                        if(!in.eof()) ch = in.get();
-                        while (std::isspace(ch) || ch == '/') {
-                            if(std::isspace(ch)) skip_spaces();
-                            if(ch == '/') skip_comments();
-                        }
+                        skip_spaces_and_comments();
                         if(ch != ',' && ch != '}')
                             JSON_PARSE_ERROR("json: ',' or '}' expected");
                     }
@@ -581,12 +569,14 @@ namespace CompactJSON {
                     if(!in.eof() && (ch = in.get()) == 'u' && !in.eof() && (ch = in.get()) == 'l' && !in.eof() && (ch = in.get()) == 'l')
                         ret = nullptr;
                     else JSON_PARSE_ERROR("json: unexpected character");
+                    ch = in.get();
                     break;
                 }
                 case 't': {//true
                     if(!in.eof() && (ch = in.get()) == 'r' && !in.eof() && (ch = in.get()) == 'u' && !in.eof() && (ch = in.get()) == 'e')
                         ret = true;
                     else JSON_PARSE_ERROR("json: unexpected character");
+                    ch = in.get();
                     break;
                 }
                 case 'f': {//false
@@ -594,10 +584,7 @@ namespace CompactJSON {
                         && !in.eof() && (ch = in.get()) == 'e')
                         ret = false;
                     else JSON_PARSE_ERROR("json: unexpected character");
-                    break;
-                }
-                case '/': {//comment begin 
-                    skip_comments();
+                    ch = in.get();
                     break;
                 }
                 default: {//error
@@ -611,7 +598,7 @@ namespace CompactJSON {
             if(!in.eof()) *this = scan_value();
             if(!in.eof()) {
                 if(!is_array() && !is_object()) ch = in.get();
-                if(std::isspace(ch)) skip_spaces();
+                skip_spaces_and_comments();
                 if(!in.eof() && !std::isspace(ch)) JSON_PARSE_ERROR("json: unexpected character");
             }
         }
