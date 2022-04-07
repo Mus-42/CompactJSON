@@ -82,9 +82,3 @@ if(j5.is_integer())
     auto i = j5.get<int>();
 ```
 For more features check example.cpp & json.hpp
-## Todo list
-* Add unicode strings and keys support, \u escape sequences (now supported ascii-only characters)
-* Add utf-8 file support
-* Add trailing commas check
-* Add parsing options (such as enable cpp-style comments etc.)
-* Make JSONBase template class? (add templates for map, vetor and string classes)

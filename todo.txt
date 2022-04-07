@@ -1,0 +1,5 @@
+Fix utf-8 characters inside strings
+Add utf-8 file support
+Fix floating point numbers precision
+Add trailing commas check
+Make JSONBase template class? (add templates for map, vetor and string classes)
