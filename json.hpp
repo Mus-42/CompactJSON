@@ -78,11 +78,9 @@ namespace CompactJSON {
                 this->~JSONIteratorBase();
                 switch (m_type = o.m_type) {
                 case iter_t::array:
-                new (&iter_array) array_it(o.iter_array);
-                break;
+                    new (&iter_array) array_it(o.iter_array); break;
                 case iter_t::object:
-                new (&iter_object) object_it(o.iter_object);
-                break;
+                    new (&iter_object) object_it(o.iter_object); break;
                 default: break;
                 }
                 return *this;
@@ -123,8 +121,7 @@ namespace CompactJSON {
                 return tmp;
             }
             bool operator==(const JSONIteratorBase& o) const {
-                if (m_type != o.m_type)
-                    return false;
+                if (m_type != o.m_type) return false;
                 switch (m_type) {
                 case iter_t::array: return iter_array == o.iter_array;
                 case iter_t::object: return iter_object == o.iter_object;
@@ -165,14 +162,14 @@ namespace CompactJSON {
             case val_t::bool_t: b = v.b; break;
             case val_t::string_t: str = v.str; break;
             case val_t::object_t:
-            for (auto& [key, val] : v.obj)
-                obj[key] = new JSONBase(*val);
-            break;
+                for (auto& [key, val] : v.obj)
+                    obj[key] = new JSONBase(*val);
+                break;
             case val_t::array_t:
-            arr.resize(v.arr.size());
-            for (size_t i = 0; i < v.arr.size(); i++)
-                arr[i] = new JSONBase(*v.arr[i]);
-            break;
+                arr.resize(v.arr.size());
+                for (size_t i = 0; i < v.arr.size(); i++)
+                    arr[i] = new JSONBase(*v.arr[i]);
+                break;
             case val_t::null_t: default: break;
             }
             return *this;
@@ -184,16 +181,16 @@ namespace CompactJSON {
             case val_t::int_t: i = v.i; break;
             case val_t::bool_t: b = v.b; break;
             case val_t::string_t:
-            str = std::move(v.str);
-            break;
+                str = std::move(v.str);
+                break;
             case val_t::object_t:
-            obj = std::move(v.obj);
-            v.obj.clear();
-            break;
+                obj = std::move(v.obj);
+                v.obj.clear();
+                break;
             case val_t::array_t:
-            arr = std::move(v.arr);
-            v.arr.clear();
-            break;
+                arr = std::move(v.arr);
+                v.arr.clear();
+                break;
             case val_t::null_t: default: break;
             }
             return *this;
@@ -227,27 +224,28 @@ namespace CompactJSON {
             }
         }
 
-        static JSONBase from_string(const std::string& str, bool enable_comments = false) {
+        [[nodiscard]] static JSONBase from_string(const std::string& str, bool enable_comments = false) {
             std::istringstream s(str);
             return from_stream(s, enable_comments);
         }
-        static JSONBase from_stream(std::istream& istr, bool enable_comments = false) {
+        [[nodiscard]] static JSONBase from_stream(std::istream& istr, bool enable_comments = false) {
             JSONBase j;
             j.scan(istr, enable_comments);
             return j;
         }
+        //TODO add from_file (with BOM check)
 
-        bool is_float() const noexcept { return m_type == val_t::float_t; }
-        bool is_integer() const noexcept { return m_type == val_t::int_t; }
-        bool is_boolean() const noexcept { return m_type == val_t::bool_t; }
-        bool is_string() const noexcept { return m_type == val_t::string_t; }
-        bool is_object() const noexcept { return m_type == val_t::object_t; }
-        bool is_array() const noexcept { return m_type == val_t::array_t; }
-        bool is_null() const noexcept { return m_type == val_t::null_t; }
-        bool is_number() const noexcept { return m_type == val_t::int_t || m_type == val_t::float_t; }
+        [[nodiscard]] bool is_float() const noexcept { return m_type == val_t::float_t; }
+        [[nodiscard]] bool is_integer() const noexcept { return m_type == val_t::int_t; }
+        [[nodiscard]] bool is_boolean() const noexcept { return m_type == val_t::bool_t; }
+        [[nodiscard]] bool is_string() const noexcept { return m_type == val_t::string_t; }
+        [[nodiscard]] bool is_object() const noexcept { return m_type == val_t::object_t; }
+        [[nodiscard]] bool is_array() const noexcept { return m_type == val_t::array_t; }
+        [[nodiscard]] bool is_null() const noexcept { return m_type == val_t::null_t; }
+        [[nodiscard]] bool is_number() const noexcept { return m_type == val_t::int_t || m_type == val_t::float_t; }
 
 
-        JSONBase& operator[](const std::string& key) {
+        [[nodiscard]] JSONBase& operator[](const std::string& key) {
             if (is_null())
                 set_type_to(val_t::object_t);
             JSON_TYPE_ASSERT(is_object());
@@ -257,35 +255,35 @@ namespace CompactJSON {
             else
                 return *f->second;
         }
-        const JSONBase& operator[](const std::string& key) const {
+        [[nodiscard]] const JSONBase& operator[](const std::string& key) const {
             JSON_TYPE_ASSERT(is_object());
             auto f = obj.find(key);
             JSON_ASSERT(f != obj.end()); //must contains element
             return *f->second;
         }
-        JSONBase& operator[](size_t i) {
+        [[nodiscard]] JSONBase& operator[](size_t i) {
             if (is_null())
                 set_type_to(val_t::array_t);
             JSON_TYPE_ASSERT(is_array());
             if (arr.size() <= i) resize(i + 1);
             return *arr[i];
         }
-        const JSONBase& operator[](size_t i) const {
+        [[nodiscard]] const JSONBase& operator[](size_t i) const {
             JSON_TYPE_ASSERT(is_array());
             JSON_ASSERT(i < arr.size());
             return *arr[i];
         }
 
-        size_t array_size() const {
+        [[nodiscard]] size_t array_size() const {
             JSON_TYPE_ASSERT(is_array());
             return arr.size();
         }
-        size_t object_size() const {
+        [[nodiscard]] size_t object_size() const {
             JSON_TYPE_ASSERT(is_object());
             return obj.size();
         }
 
-        bool contains(const std::string& key) const {
+        [[nodiscard]] bool contains(const std::string& key) const {
             JSON_TYPE_ASSERT(is_object());
             auto f = obj.find(key);
             return f != obj.end();
@@ -311,29 +309,29 @@ namespace CompactJSON {
             set_type_to(val_t::null_t);
         }
 
-        bool empty() const {
+        [[nodiscard]] bool empty() const {
             JSON_TYPE_ASSERT(is_object() || is_array());
             return is_array() ? arr.empty() : obj.empty();
         }
 
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-        double& get() { JSON_TYPE_ASSERT(is_float()); return d; }
+        [[nodiscard]] double& get() { JSON_TYPE_ASSERT(is_float()); return d; }
         template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-        const double& get() const { JSON_TYPE_ASSERT(is_float()); return d; }
+        [[nodiscard]] const double& get() const { JSON_TYPE_ASSERT(is_float()); return d; }
         template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, bool> = true>
-        int64_t& get() { JSON_TYPE_ASSERT(is_integer()); return i; }
+        [[nodiscard]] int64_t& get() { JSON_TYPE_ASSERT(is_integer()); return i; }
         template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, bool> = true>
-        const int64_t& get() const { JSON_TYPE_ASSERT(is_integer()); return i; }
+        [[nodiscard]] const int64_t& get() const { JSON_TYPE_ASSERT(is_integer()); return i; }
         template <typename T, std::enable_if_t<std::is_same_v<T, bool>, bool> = true>
-        bool& get() { JSON_TYPE_ASSERT(is_boolean()); return b; }
+        [[nodiscard]] bool& get() { JSON_TYPE_ASSERT(is_boolean()); return b; }
         template <typename T, std::enable_if_t<std::is_same_v<T, bool>, bool> = true>
-        const bool& get() const { JSON_TYPE_ASSERT(is_boolean()); return b; }
+        [[nodiscard]] const bool& get() const { JSON_TYPE_ASSERT(is_boolean()); return b; }
         template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, bool> = true>
-        std::string& get() { JSON_TYPE_ASSERT(is_string()); return str; }
+        [[nodiscard]] std::string& get() { JSON_TYPE_ASSERT(is_string()); return str; }
         template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, bool> = true>
-        const std::string& get() const { JSON_TYPE_ASSERT(is_string()); return str; }
+        [[nodiscard]] const std::string& get() const { JSON_TYPE_ASSERT(is_string()); return str; }
         template <typename T, std::enable_if_t<std::is_same_v<T, std::nullptr_t>, bool> = true>
-        std::nullptr_t get() const { JSON_TYPE_ASSERT(is_null()); return nullptr; }
+        [[nodiscard]] std::nullptr_t get() const { JSON_TYPE_ASSERT(is_null()); return nullptr; }
 
         iterator begin() {
             JSON_TYPE_ASSERT(is_array() || is_object());
@@ -360,7 +358,7 @@ namespace CompactJSON {
         const_reverse_iterator crbegin() const { return const_reverse_iterator(end()); }
         const_reverse_iterator crend() const { return const_reverse_iterator(begin()); }
 
-        std::string to_string(int tab_size = -1) const {
+        [[nodiscard]] std::string to_string(int tab_size = -1) const {
             std::ostringstream s;
             print(s, tab_size);
             return s.str();
@@ -633,8 +631,7 @@ namespace CompactJSON {
                         if (!std::isfinite(f)) JSON_PARSE_ERROR("json: invalid constant");
                         ret = f;
                     }
-                    else
-                        ret = i;
+                    else ret = i;
                     break;
                 }
                 case 'n': {//null
@@ -729,18 +726,18 @@ namespace CompactJSON {
         val_t set_type_to(val_t t) {
             switch (m_type) { //destruct value
             case val_t::string_t:
-            str.~basic_string();
-            break;
+                str.~basic_string();
+                break;
             case val_t::object_t:
-            for (auto& [key, v] : obj)
-                delete v;
-            obj.~map();
-            break;
+                for (auto& [key, v] : obj)
+                    delete v;
+                obj.~map();
+                break;
             case val_t::array_t:
-            for (auto v : arr)
-                delete v;
-            arr.~vector();
-            break;
+                for (auto v : arr)
+                    delete v;
+                arr.~vector();
+                break;
             default: break;
             }
             m_type = t;
@@ -765,19 +762,19 @@ namespace CompactJSON {
         case val_t::bool_t: return a.b == b.b;
         case val_t::string_t: return a.str == b.str;
         case val_t::object_t:
-        if (a.obj.size() != b.obj.size())
-            return false;
-        for (auto ai = a.obj.begin(), bi = b.obj.begin(); ai != a.obj.end(); ai++, bi++)
-            if (ai->first != bi->first || *ai->second != *bi->second)
+            if (a.obj.size() != b.obj.size())
                 return false;
-        return true;
+            for (auto ai = a.obj.begin(), bi = b.obj.begin(); ai != a.obj.end(); ai++, bi++)
+                if (ai->first != bi->first || *ai->second != *bi->second)
+                    return false;
+            return true;
         case val_t::array_t:
-        if (a.arr.size() != b.arr.size())
-            return false;
-        for (size_t i = 0; i < a.arr.size(); i++)
-            if (*a.arr[i] != *b.arr[i])
+            if (a.arr.size() != b.arr.size())
                 return false;
-        return true;
+            for (size_t i = 0; i < a.arr.size(); i++)
+                if (*a.arr[i] != *b.arr[i])
+                    return false;
+            return true;
         case val_t::null_t: return true;
         default: break;
         }
