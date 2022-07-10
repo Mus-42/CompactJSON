@@ -1,11 +1,17 @@
 # CompactJSON - Single include JSON C++17 library
 
-## Type system:
+## Type system
+
 ### Primitive types
+
 JSON string type represented as ``std::string``, number type as ``double`` for rational numbers and ``int64_t`` for integers and ``bool`` for booleans.
-### Container types
-Array and object not available outside JSONBase class. Inside arrays stored as ``std::vector``, objects as ``std::map``. 
+
+### Container
+
+Array and object not available outside JSONBase class. Inside arrays stored as ``std::vector``, objects as ``std::map``.
+
 ## JSON objects creation
+
 ```cpp
 /*
     create this json:
@@ -27,13 +33,17 @@ j2["enable_synch"] = false;
     }
 */ 
 ```
+
 ## Input and output streams
+
 ```cpp
 std::cout << j2 << std::endl;//print {"enable_synch":false}
 if(in.is_open()) std::ifstream in("example.json");
 in >> j2;//scan json object to j2 from example.json file
 ```
+
 ## To string and from string conversions
+
 ```cpp
 std::string s1 = j1.to_string();
 /*
@@ -56,7 +66,9 @@ std::string s2 = j1.to_string(4);//pass tab_size 4
 //parse json back from string
 auto j3 = JSON::from_string(s2);
 ```
+
 ## Data access
+
 ```cpp
 /*
     to check contained type you can use .is_***() metods for 
@@ -81,4 +93,5 @@ JSON j5 = 15;
 if(j5.is_integer())
     auto i = j5.get<int>();
 ```
+
 For more features check example.cpp & json.hpp

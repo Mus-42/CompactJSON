@@ -1,5 +1,5 @@
 Fix utf-8 characters inside strings
-Add utf-8 file support
+Add utf-8 file support (`from_file` function with BOM check? )
 Fix floating point numbers precision
 Add trailing commas check
 Make JSONBase template class? (add templates for map, vetor and string classes)

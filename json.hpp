@@ -106,7 +106,7 @@ namespace CompactJSON {
             }
             JSONIteratorBase operator++(int) noexcept {
                 auto tmp = *this;
-                ++* this;
+                ++*this;
                 return tmp;
             }
             JSONIteratorBase& operator--() noexcept {
@@ -119,7 +119,7 @@ namespace CompactJSON {
             }
             JSONIteratorBase operator--(int) noexcept {
                 auto tmp = *this;
-                --* this;
+                --*this;
                 return tmp;
             }
             bool operator==(const JSONIteratorBase& o) const {
@@ -553,8 +553,14 @@ namespace CompactJSON {
                 if ((ch == '+' || ch == '-') && !in.eof())
                     ch = in.get();
                 int64_t int_part = std::isdigit(ch) ? ch - '0' : 0, fract_part = 0, fract_div = 1, exp_part = 0;
-                if (std::isdigit(ch))
-                    while (!in.eof() && std::isdigit(ch = in.get())) int_part = int_part * 10 + ch - '0';
+                if (std::isdigit(ch)) {
+                    uint64_t last_int = 0;
+                    while (!in.eof() && std::isdigit(ch = in.get())) {
+                        last_int = int_part;
+                        int_part = int_part * 10 + ch - '0';
+                        if(int_part < last_int) JSON_PARSE_ERROR("json: number integer part overflow");
+                    }
+                }
                 if (ch == '.') {
                     is_float = true; //fractional part
                     while (!in.eof() && std::isdigit(ch = in.get())) fract_part = fract_part * 10 + ch - '0', fract_div *= 10;
@@ -569,7 +575,7 @@ namespace CompactJSON {
                 return is_float ? num_ret_t{
                     {(is_positive ? 1. : -1.) * (double(int_part) + double(fract_part) / double(fract_div))//float value 
                     * std::pow(10., ((is_exp_positive ? 1. : -1.) * double(exp_part))), 0}, true } ://exponent
-                    num_ret_t{ {0., (is_positive ? 1 : -1) * int_part}, false };//integer
+                    num_ret_t{ {0., (is_positive ? 1. : -1.) * int_part}, false };//integer
             };
 
             std::function<JSONBase(void)> scan_value;
