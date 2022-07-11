@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <array>
 #include <map>
 #include <iterator> //random_access_iterator_tag
 #include <functional>
@@ -99,34 +100,68 @@ namespace CompactJSON {
 
         //TODO move scan string here?
         inline std::variant<int64_t, double> scan_number(int& ch, std::istream& in) {
-            bool is_positive = ch != '-', is_exp_positive = true, is_float = false;
-            if ((ch == '+' || ch == '-') && in.good())
-                ch = in.get();
-            int64_t int_part = std::isdigit(ch) ? ch - '0' : 0, fract_part = 0, fract_div = 1, exp_part = 0;
+            bool is_positive = ch != '-', has_float = false, has_exp = false;
+            if ((ch == '+' || ch == '-') && in.good()) ch = in.get();
+            std::string int_part, fract_part;
+            int exp_part = 0;
             if (std::isdigit(ch)) {
-                int64_t last_int = 0;
-                while (in.good() && std::isdigit(ch = in.get())) {
-                    last_int = int_part;
-                    int_part = int_part * 10 + ch - '0';
-                    if(int_part < last_int) JSON_PARSE_ERROR("json: number integer part overflow");
-                }
+                int_part += ch;
+                while (in.good() && std::isdigit(ch = in.get())) int_part += ch;
             }
             if (ch == '.') {
-                is_float = true; //fractional part
-                while (in.good() && std::isdigit(ch = in.get())) fract_part = fract_part * 10 + ch - '0', fract_div *= 10;
+                has_float = true; //fractional part
+                while (in.good() && std::isdigit(ch = in.get())) fract_part += ch;
+                if(fract_part.size() > 308) fract_part.resize(308);
             }
             if (ch == 'e' || ch == 'E') {
-                is_float = true;
-                if (in.good()) ch = in.get(); //exponent (all numbers with exp is float)
+                has_exp = true;
+                bool is_exp_positive = true;
+                ch = in.get(); //exponent (all numbers with exp is float)
                 if (ch == '-') is_exp_positive = false;
-                exp_part = std::isdigit(ch) ? ch - '0' : 0;
-                while (in.good() && std::isdigit(ch = in.get())) exp_part = exp_part * 10 + ch - '0';//TODO overflow check
+                size_t exp_size = 0;
+                if (std::isdigit(ch)) exp_part += ch - '0', exp_size = 1;
+                int prev_exp = 0;
+                while (in.good() && std::isdigit(ch = in.get())) {
+                    prev_exp = exp_part;
+                    exp_part = exp_part * 10 + ch - '0';//TODO overflow check
+                    exp_size++;
+                    if(prev_exp > exp_part) JSON_PARSE_ERROR("json: number exponent overflow");
+                }
 
-                if(exp_part > 308) JSON_PARSE_ERROR("json: number too large exponent");
+                if(exp_size == 0) JSON_PARSE_ERROR("json: number invalid exponent");
+                if(!is_exp_positive) exp_part = -exp_part;
+                if(exp_part > 308) JSON_PARSE_ERROR("json: number too large exponent");//TODO return +inf?
+                if(exp_part < -308) return 0.;
             } //now number is: (is_positive ? 1 : -1) * (int_part + fract_part/fract_div) * 10^((is_exp_positive ? 1 : -1) * exp_part)
-            if(is_float) return (is_positive ? 1. : -1.) * (double(int_part) + double(fract_part) / double(fract_div))//float value 
-                * std::pow(10., ((is_exp_positive ? 1. : -1.) * double(exp_part)));  //exponent
-            else return (is_positive ? 1 : -1) * int_part;//integer
+
+            static std::array<double, 308*2+1> pow10_table = ([](){
+                static std::array<double, 308*2+1> ret;
+                for(size_t i = 0; i <= 308*2; i++) ret[i] = std::pow(10, int(i)-308);
+                return ret;
+            })();
+
+            if(has_exp || has_float) {
+                double iv = int_part.size() ? std::stod(int_part) : 0.;
+                double fv = fract_part.size() ? std::stod(fract_part) * pow10_table[308 - fract_part.size()] : 0.;
+                return std::copysign((iv + fv) * pow10_table[308 + exp_part], is_positive ? 1. : -1.);
+            }
+
+            if(int_part.size() == 0) JSON_PARSE_ERROR("json: invalid number");
+            
+            bool has_overflow = int_part.size() > 19;
+
+            int64_t int_val = 0, prev_val = 0;
+            if(!has_overflow) for(auto ch : int_part) {
+                prev_val = int_val;
+                int_val *= 10, int_val += ch - '0';
+                if(prev_val > int_val) {
+                    has_overflow = true;  
+                    break;
+                }
+            }
+
+            if(has_overflow) return std::copysign(std::stod(int_part), is_positive ? 1. : -1.);
+            return (is_positive ? int_val : -int_val);
         }
         template <typename JSON_, typename array_it, typename object_it>
         class JSONIteratorBase {
